@@ -111,6 +111,13 @@ func LoadConfigFile[T any](defaultConfig *T, configPath string) (*T, error) {
 		return nil, fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
 
+	// Expand env refs like $VAR or ${VAR:-default} in the unmarshaled config.
+	// Do not fail startup on missing envs by default.
+	if err := ExpandEnvVarsInConfig(config, ExpandOptions{FailOnMissing: false}); err != nil {
+		log.Error().Err(err).Msg("Failed to expand env vars in config")
+		return nil, fmt.Errorf("failed to expand env vars in config: %w", err)
+	}
+
 	MergeConfigs(config, defaultConfig)
 	return config, nil
 }
