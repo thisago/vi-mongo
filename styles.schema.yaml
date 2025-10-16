@@ -1,0 +1,381 @@
+# yaml-language-server: $schema=http://json-schema.org/draft/2020-12/schema
+title: "vi-mongo styles schema"
+type: object
+required:
+  - global
+  - welcome
+  - connection
+  - header
+  - tabBar
+  - databases
+  - content
+  - aiQuery
+  - docPeeker
+  - inputBar
+  - history
+  - help
+  - others
+  - styleChange
+
+properties:
+  global:
+    type: object
+    required:
+      - backgroundColor
+      - contrastBackgroundColor
+      - moreContrastBackgroundColor
+      - textColor
+      - secondaryTextColor
+      - borderColor
+      - focusColor
+      - titleColor
+      - graphicsColor
+
+    properties:
+      backgroundColor:
+        type: string
+        description: "Primary background color (hex or tcell color name)"
+        default: "#0F172A"
+      contrastBackgroundColor:
+        type: string
+        description: "Secondary background color"
+        default: "#1E293B"
+      moreContrastBackgroundColor:
+        type: string
+        description: "Accent background color"
+        default: "#387D44"
+      textColor:
+        type: string
+        description: "Primary text color"
+        default: "#E2E8F0"
+      secondaryTextColor:
+        type: string
+        description: "Secondary / accent text color"
+        default: "#FDE68A"
+      borderColor:
+        type: string
+        description: "Border color"
+        default: "#387D44"
+      focusColor:
+        type: string
+        description: "Focus color for widgets"
+        default: "#4ADE80"
+      titleColor:
+        type: string
+        description: "Title color"
+        default: "#387D44"
+      graphicsColor:
+        type: string
+        description: "Graphics / icon color"
+        default: "#387D44"
+    additionalProperties: false
+
+  welcome:
+    type: object
+    required:
+      - formLabelColor
+      - formInputColor
+      - formInputBackgroundColor
+    properties:
+      formLabelColor:
+        type: string
+        default: "#FDE68A"
+      formInputColor:
+        type: string
+        default: "#E2E8F0"
+      formInputBackgroundColor:
+        type: string
+        default: "#1E293B"
+    additionalProperties: false
+
+  connection:
+    type: object
+    required:
+      - formLabelColor
+      - formInputBackgroundColor
+      - formInputColor
+      - listTextColor
+      - listSelectedTextColor
+      - listSelectedBackgroundColor
+      - listSecondaryTextColor
+      - listSecondaryBackgroundColor
+    properties:
+      formLabelColor:
+        type: string
+        default: "#F1FA8C"
+      formInputBackgroundColor:
+        type: string
+        default: "#163694"
+      formInputColor:
+        type: string
+        default: "#F1FA8C"
+      listTextColor:
+        type: string
+        default: "#F1FA8C"
+      listSelectedTextColor:
+        type: string
+        default: "#F1FA8C"
+      listSelectedBackgroundColor:
+        type: string
+        default: "#387D44"
+      listSecondaryTextColor:
+        type: string
+        default: "#387D44"
+      listSecondaryBackgroundColor:
+        type: string
+        default: "#0F172A"
+    additionalProperties: false
+
+  header:
+    type: object
+    required: ["keyColor", "valueColor", "activeSymbol", "inactiveSymbol"]
+    properties:
+      keyColor:
+        type: string
+        default: "#FDE68A"
+      valueColor:
+        type: string
+        default: "#387D44"
+      activeSymbol:
+        type: string
+        description: "Symbol used to indicate active state"
+        default: "●"
+      inactiveSymbol:
+        type: string
+        description: "Symbol used to indicate inactive state"
+        default: "○"
+    additionalProperties: false
+
+  tabBar:
+    type: object
+    required: ["activeTextColor", "activeBackgroundColor"]
+    properties:
+      activeTextColor:
+        type: string
+        default: "#FDE68A"
+      activeBackgroundColor:
+        type: string
+        default: "#387D44"
+    additionalProperties: false
+
+  databases:
+    type: object
+    required:
+      - nodeTextColor
+      - leafTextColor
+      - nodeSymbolColor
+      - leafSymbolColor
+      - openNodeSymbol
+      - closedNodeSymbol
+      - leafSymbol
+    properties:
+      nodeTextColor:
+        type: string
+        default: "#387D44"
+      leafTextColor:
+        type: string
+        default: "#E2E8F0"
+      nodeSymbolColor:
+        type: string
+        default: "#FDE68A"
+      leafSymbolColor:
+        type: string
+        default: "#387D44"
+      openNodeSymbol:
+        type: string
+        default: "▼"
+      closedNodeSymbol:
+        type: string
+        default: "▶"
+      leafSymbol:
+        type: string
+        default: "◆"
+    additionalProperties: false
+
+  content:
+    type: object
+    required:
+      - statusTextColor
+      - headerRowColor
+      - columnKeyColor
+      - columnTypeColor
+      - cellTextColor
+      - selectedRowColor
+      - multiSelectedRowColor
+    properties:
+      statusTextColor:
+        type: string
+        default: "#FDE68A"
+      headerRowColor:
+        type: string
+        default: "#1E293B"
+      columnKeyColor:
+        type: string
+        default: "#FDE68A"
+      columnTypeColor:
+        type: string
+        default: "#387D44"
+      cellTextColor:
+        type: string
+        default: "#387D44"
+      selectedRowColor:
+        type: string
+        default: "#4ADE80"
+      multiSelectedRowColor:
+        type: string
+        default: "#2E6B4A"
+    additionalProperties: false
+
+  aiQuery:
+    type: object
+    required: ["formLabelColor", "formInputBackgroundColor", "formInputColor"]
+    properties:
+      formLabelColor:
+        type: string
+        default: "#F1FA8C"
+      formInputBackgroundColor:
+        type: string
+        default: "#163694"
+      formInputColor:
+        type: string
+        default: "#F1FA8C"
+    additionalProperties: false
+
+  docPeeker:
+    type: object
+    required: ["keyColor", "valueColor", "bracketColor", "highlightColor"]
+    properties:
+      keyColor:
+        type: string
+        default: "#387D44"
+      valueColor:
+        type: string
+        default: "#E2E8F0"
+      bracketColor:
+        type: string
+        default: "#FDE68A"
+      highlightColor:
+        type: string
+        default: "#3A4963"
+    additionalProperties: false
+
+  inputBar:
+    type: object
+    required:
+      - labelColor
+      - inputColor
+      - autocomplete
+    properties:
+      labelColor:
+        type: string
+        default: "#FDE68A"
+      inputColor:
+        type: string
+        default: "#E2E8F0"
+      autocomplete:
+        type: object
+        required:
+          - backgroundColor
+          - textColor
+          - activeBackgroundColor
+          - activeTextColor
+          - secondaryTextColor
+        properties:
+          backgroundColor:
+            type: string
+            default: "#1E293B"
+          textColor:
+            type: string
+            default: "#E2E8F0"
+          activeBackgroundColor:
+            type: string
+            default: "#387D44"
+          activeTextColor:
+            type: string
+            default: "#0F172A"
+          secondaryTextColor:
+            type: string
+            default: "#FDE68A"
+        additionalProperties: false
+    additionalProperties: false
+
+  history:
+    type: object
+    required: ["textColor", "selectedTextColor", "selectedBackgroundColor"]
+    properties:
+      textColor:
+        type: string
+        default: "#E2E8F0"
+      selectedTextColor:
+        type: string
+        default: "#0F172A"
+      selectedBackgroundColor:
+        type: string
+        default: "#387D44"
+    additionalProperties: false
+
+  help:
+    type: object
+    required: ["headerColor", "keyColor", "descriptionColor"]
+    properties:
+      headerColor:
+        type: string
+        default: "#387D44"
+      keyColor:
+        type: string
+        default: "#FDE68A"
+      descriptionColor:
+        type: string
+        default: "#E2E8F0"
+    additionalProperties: false
+
+  others:
+    type: object
+    required:
+      - buttonsTextColor
+      - buttonsBackgroundColor
+      - deleteButtonSelectedBackgroundColor
+      - modalTextColor
+      - modalSecondaryTextColor
+      - separatorSymbol
+      - separatorColor
+    properties:
+      buttonsTextColor:
+        type: string
+        default: "#FDE68A"
+      buttonsBackgroundColor:
+        type: string
+        default: "#387D44"
+      deleteButtonSelectedBackgroundColor:
+        type: string
+        default: "#DA3312"
+      modalTextColor:
+        type: string
+        default: "#FDE68A"
+      modalSecondaryTextColor:
+        type: string
+        default: "#387D44"
+      separatorSymbol:
+        type: string
+        default: "|"
+      separatorColor:
+        type: string
+        default: "#334155"
+    additionalProperties: false
+
+  styleChange:
+    type: object
+    required: ["textColor", "selectedTextColor", "selectedBackgroundColor"]
+    properties:
+      textColor:
+        type: string
+        default: "#E2E8F0"
+      selectedTextColor:
+        type: string
+        default: "#0F172A"
+      selectedBackgroundColor:
+        type: string
+        default: "#387D44"
+    additionalProperties: false
+
+additionalProperties: false
