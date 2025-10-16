@@ -39,12 +39,42 @@ func ExpandEnvVarsInConfig(cfg any, opts ExpandOptions) error {
 		return errors.New("cfg must be a pointer to a value")
 	}
 	v = v.Elem()
-	if opts.FailOnMissing {
-		return expandValue(v, "", &opts)
-	}
-	return expandValueNoFail(v, "", &opts)
+	return expandValue(v, "", &opts)
 }
 
+// processString centralizes detection and replacement logic. It returns (newVal, matched, err).
+func processString(s string, failOnMissing bool) (string, bool, error) {
+	if s == "" {
+		return "", false, nil
+	}
+	if m := dollarVarRe.FindStringSubmatch(s); m != nil {
+		name := m[1]
+		if val, ok := os.LookupEnv(name); ok {
+			return val, true, nil
+		}
+		if failOnMissing {
+			return "", true, fmt.Errorf("environment variable %s not set", name)
+		}
+		return "", true, nil
+	}
+	if m := braceVarRe.FindStringSubmatch(s); m != nil {
+		name := m[1]
+		def := m[2]
+		if val, ok := os.LookupEnv(name); ok {
+			return val, true, nil
+		}
+		if def != "" {
+			return def, true, nil
+		}
+		if failOnMissing {
+			return "", true, fmt.Errorf("environment variable %s not set", name)
+		}
+		return "", true, nil
+	}
+	return s, false, nil
+}
+
+// expandValue is a single recursive walker handling all kinds and using opts.FailOnMissing
 func expandValue(v reflect.Value, path string, opts *ExpandOptions) error {
 	if opts.AllowPath != nil && path != "" && !opts.AllowPath(path) {
 		return nil
@@ -54,12 +84,7 @@ func expandValue(v reflect.Value, path string, opts *ExpandOptions) error {
 	}
 
 	switch v.Kind() {
-	case reflect.Ptr:
-		if v.IsNil() {
-			return nil
-		}
-		return expandValue(v.Elem(), path, opts)
-	case reflect.Interface:
+	case reflect.Ptr, reflect.Interface:
 		if v.IsNil() {
 			return nil
 		}
@@ -67,182 +92,49 @@ func expandValue(v reflect.Value, path string, opts *ExpandOptions) error {
 	case reflect.Struct:
 		t := v.Type()
 		for i := 0; i < v.NumField(); i++ {
-			field := v.Field(i)
-			ft := t.Field(i)
-			// only exported fields are settable
-			if ft.PkgPath != "" {
+			sf := t.Field(i)
+			if sf.PkgPath != "" { // unexported
 				continue
 			}
-
-			name := jsonFieldName(ft)
-			subPath := joinPath(path, name)
-			if err := expandValue(field, subPath, opts); err != nil {
+			name := jsonFieldName(sf)
+			sub := joinPath(path, name)
+			if err := expandValue(v.Field(i), sub, opts); err != nil {
 				return err
 			}
 		}
 	case reflect.Map:
-		if v.IsNil() {
-			return nil
-		}
-		if v.Type().Key().Kind() != reflect.String {
+		if v.IsNil() || v.Type().Key().Kind() != reflect.String {
 			return nil
 		}
 		for _, key := range v.MapKeys() {
 			k := key.String()
 			val := v.MapIndex(key)
-			// Work on a settable copy
-			newVal := reflect.New(val.Type()).Elem()
-			newVal.Set(val)
-			subPath := joinPath(path, k)
-			if err := expandValue(newVal, subPath, opts); err != nil {
+			copyVal := reflect.New(val.Type()).Elem()
+			copyVal.Set(val)
+			sub := joinPath(path, k)
+			if err := expandValue(copyVal, sub, opts); err != nil {
 				return err
 			}
-			v.SetMapIndex(key, newVal)
+			v.SetMapIndex(key, copyVal)
 		}
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < v.Len(); i++ {
-			elem := v.Index(i)
-			subPath := joinPath(path, strconv.Itoa(i))
-			if err := expandValue(elem, subPath, opts); err != nil {
+			sub := joinPath(path, strconv.Itoa(i))
+			if err := expandValue(v.Index(i), sub, opts); err != nil {
 				return err
 			}
 		}
 	case reflect.String:
+		if !v.CanSet() {
+			return nil
+		}
 		orig := v.String()
-		newStr, matched, err := expandString(orig)
+		newStr, matched, err := processString(orig, opts.FailOnMissing)
 		if err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
 		if matched {
-			if v.CanSet() {
-				v.SetString(newStr)
-			}
-		}
-	}
-	return nil
-}
-
-func expandString(s string) (string, bool, error) {
-	if s == "" {
-		return "", false, nil
-	}
-	if m := dollarVarRe.FindStringSubmatch(s); m != nil {
-		varName := m[1]
-		val, ok := os.LookupEnv(varName)
-		if ok {
-			return val, true, nil
-		}
-		// no default form for $VAR
-		return "", true, fmt.Errorf("environment variable %s not set", varName)
-	}
-	if m := braceVarRe.FindStringSubmatch(s); m != nil {
-		varName := m[1]
-		defaultVal := m[2]
-		val, ok := os.LookupEnv(varName)
-		if ok {
-			return val, true, nil
-		}
-		if defaultVal != "" {
-			return defaultVal, true, nil
-		}
-		return "", true, fmt.Errorf("environment variable %s not set", varName)
-	}
-	return s, false, nil
-}
-
-func expandValueNoFail(v reflect.Value, path string, opts *ExpandOptions) error {
-	if opts.AllowPath != nil && path != "" && !opts.AllowPath(path) {
-		return nil
-	}
-	if !v.IsValid() {
-		return nil
-	}
-
-	switch v.Kind() {
-	case reflect.Ptr:
-		if v.IsNil() {
-			return nil
-		}
-		return expandValueNoFail(v.Elem(), path, opts)
-	case reflect.Interface:
-		if v.IsNil() {
-			return nil
-		}
-		return expandValueNoFail(v.Elem(), path, opts)
-	case reflect.Struct:
-		t := v.Type()
-		for i := 0; i < v.NumField(); i++ {
-			field := v.Field(i)
-			ft := t.Field(i)
-			if ft.PkgPath != "" {
-				continue
-			}
-			name := jsonFieldName(ft)
-			subPath := joinPath(path, name)
-			if err := expandValueNoFail(field, subPath, opts); err != nil {
-				return err
-			}
-		}
-	case reflect.Map:
-		if v.IsNil() {
-			return nil
-		}
-		if v.Type().Key().Kind() != reflect.String {
-			return nil
-		}
-		for _, key := range v.MapKeys() {
-			k := key.String()
-			val := v.MapIndex(key)
-			newVal := reflect.New(val.Type()).Elem()
-			newVal.Set(val)
-			subPath := joinPath(path, k)
-			if err := expandValueNoFail(newVal, subPath, opts); err != nil {
-				return err
-			}
-			v.SetMapIndex(key, newVal)
-		}
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < v.Len(); i++ {
-			elem := v.Index(i)
-			subPath := joinPath(path, strconv.Itoa(i))
-			if err := expandValueNoFail(elem, subPath, opts); err != nil {
-				return err
-			}
-		}
-	case reflect.String:
-		orig := v.String()
-		if m := dollarVarRe.FindStringSubmatch(orig); m != nil {
-			varName := m[1]
-			if val, ok := os.LookupEnv(varName); ok {
-				if v.CanSet() {
-					v.SetString(val)
-				}
-				return nil
-			}
-			if v.CanSet() {
-				v.SetString("")
-			}
-			return nil
-		}
-		if m := braceVarRe.FindStringSubmatch(orig); m != nil {
-			varName := m[1]
-			defaultVal := m[2]
-			if val, ok := os.LookupEnv(varName); ok {
-				if v.CanSet() {
-					v.SetString(val)
-				}
-				return nil
-			}
-			if defaultVal != "" {
-				if v.CanSet() {
-					v.SetString(defaultVal)
-				}
-				return nil
-			}
-			if v.CanSet() {
-				v.SetString("")
-			}
-			return nil
+			v.SetString(newStr)
 		}
 	}
 	return nil

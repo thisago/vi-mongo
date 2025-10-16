@@ -1,0 +1,144 @@
+# yaml-language-server: $schema=http://json-schema.org/draft/2020-12/schema
+title: "vi-mongo configuration schema"
+type: object
+required:
+  - version
+  - log
+  - editor
+  - showConnectionPage
+  - showWelcomePage
+  - connections
+  - styles
+
+properties:
+  version:
+    type: string
+    description: "Config file version"
+    default: "1.0.0"
+
+  log:
+    type: object
+    required: ["path", "level", "prettyPrint"]
+    properties:
+      path:
+        type: string
+        description: "Path to log file"
+        default: "/tmp/vi-mongo.log"
+      level:
+        type: string
+        description: "Logging level"
+        default: "info"
+        enum: ["trace", "debug", "info", "warn", "error", "fatal", "panic"]
+      prettyPrint:
+        type: boolean
+        description: "Pretty-print logs"
+        default: true
+    additionalProperties: false
+
+  editor:
+    type: object
+    required: ["command", "env"]
+    properties:
+      command:
+        type: string
+        description: "Explicit editor command to run (overrides env lookup)"
+        default: ""
+      env:
+        type: string
+        description: "Environment variable containing editor command"
+        default: "EDITOR"
+    additionalProperties: false
+
+  showConnectionPage:
+    type: boolean
+    description: "Whether to show connections page on startup"
+    default: true
+
+  showWelcomePage:
+    type: boolean
+    description: "Whether to show the welcome page on startup"
+    default: true
+
+  currentConnection:
+    type: ["string", "null"]
+    description: "Name of the currently selected connection"
+
+  connections:
+    type: array
+    description: "List of MongoDB connection entries"
+    items:
+      type: object
+      required: ["name"]
+      properties:
+        url:
+          type: string
+          description: "Raw mongodb URI (if present, used as-is)"
+        host:
+          type: string
+          description: "Mongo host"
+        port:
+          type: integer
+          description: "Mongo port"
+          default: 27017
+          minimum: 0
+          maximum: 65535
+        database:
+          type: string
+          description: "Default database name for the connection"
+        username:
+          type: string
+          description: "Username for authentication"
+        password:
+          type: string
+          description: "Password for authentication (may be encrypted)"
+        name:
+          type: string
+          description: "Human-friendly connection name"
+        timeout:
+          type: integer
+          description: "Connection timeout in seconds"
+          minimum: 0
+        options:
+          type: object
+          description: "Extra options for the connection"
+          properties:
+            alwaysConfirmActions:
+              type: boolean
+              description: "Require confirmation for actions"
+              default: true
+            authorizedDatabases:
+              type: boolean
+              description: "Enable authorized databases"
+              default: true
+            authorizedCollections:
+              type: boolean
+              description: "Enable authorized collections"
+              default: true
+            limit:
+              type: integer
+              description: "Optional default result limit"
+              minimum: 0
+          additionalProperties: false
+      additionalProperties: false
+
+  styles:
+    type: object
+    required: ["betterSymbols", "currentStyle"]
+    properties:
+      betterSymbols:
+        type: boolean
+        description: "Render nicer symbols in UI"
+        default: true
+      currentStyle:
+        type: string
+        description: "Filename of the currently selected style"
+        default: "default.yaml"
+    additionalProperties: false
+
+  encryptionKeyPath:
+    description: "Path to file containing encryption key; used to encrypt/decrypt connection passwords"
+    anyOf:
+      - type: "string"
+      - type: "null"
+
+additionalProperties: false
