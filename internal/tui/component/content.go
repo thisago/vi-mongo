@@ -2,7 +2,9 @@ package component
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -48,6 +50,7 @@ type Content struct {
 	confirmModal      *modal.Confirm
 	queryOptionsModal *modal.QueryOptionsModal
 	inlineEditModal   *modal.InlineEditModal
+	exportModal       *modal.ExportModal
 	docModifier       *DocModifier
 	state             *mongo.CollectionState
 	stateMap          *mongo.StateMap
@@ -71,6 +74,7 @@ func NewContent() *Content {
 		confirmModal:      modal.NewConfirm(ContentDeleteModalId),
 		queryOptionsModal: modal.NewQueryOptionsModal(),
 		inlineEditModal:   modal.NewInlineEditModal(),
+		exportModal:       modal.NewExportModal(),
 		docModifier:       NewDocModifier(),
 		state:             &mongo.CollectionState{},
 		stateMap:          mongo.NewStateMap(),
@@ -110,6 +114,9 @@ func (c *Content) init() error {
 	if err := c.inlineEditModal.Init(c.App); err != nil {
 		return err
 	}
+	if err := c.exportModal.Init(c.App); err != nil {
+		return err
+	}
 	if err := c.queryBar.Init(c.App); err != nil {
 		return err
 	}
@@ -141,6 +148,7 @@ func (c *Content) init() error {
 		}
 		c.queryOptionsModal.Hide()
 	})
+	c.exportModal.SetExportCallback(c.exportDocuments)
 
 	c.handleEvents(ctx)
 
@@ -274,6 +282,8 @@ func (c *Content) setKeybindings(ctx context.Context) {
 			return c.handleCopyLine(row, col)
 		case k.Contains(k.Content.CopyDocument, event.Name()):
 			return c.handleCopyDocument(row, col)
+		case k.Contains(k.Content.ExportJSON, event.Name()):
+			return c.handleExportJSON()
 		}
 
 		return event
@@ -913,6 +923,83 @@ func (c *Content) handleCopyDocument(row, col int) *tcell.EventKey {
 		modal.ShowError(c.App.Pages, "Error copying document", err)
 	}
 	return nil
+}
+
+func (c *Content) handleExportJSON() *tcell.EventKey {
+	documents := c.state.GetAllDocs()
+	if len(documents) == 0 {
+		modal.ShowError(c.App.Pages, "Nothing to export", nil)
+		return nil
+	}
+
+	name := strings.NewReplacer("/", "_", "\\", "_").Replace(c.state.Db + "." + c.state.Coll + ".json")
+	c.exportModal.Render(name)
+	return nil
+}
+
+func (c *Content) exportDocuments(request modal.ExportRequest) {
+	path := strings.TrimSpace(request.Path)
+	if path == "" {
+		modal.ShowError(c.App.Pages, "Invalid export path", errors.New("path cannot be empty"))
+		return
+	}
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		modal.ShowError(c.App.Pages, "Invalid export path", err)
+		return
+	}
+
+	documents := c.state.GetAllDocs()
+	if request.Scope == modal.ExportCurrentPage && len(documents) == 0 {
+		modal.ShowError(c.App.Pages, "Nothing to export", nil)
+		return
+	}
+	exportState := *c.state
+
+	writeExport := func(overwrite bool) (int, error) {
+		if request.Scope == modal.ExportAllMatching {
+			return mongo.ExportDocumentsFileFromIterator(absolutePath, overwrite, request.PrettyPrint, func(writeDocument func(primitive.M) error) error {
+				return c.Dao.ForEachMatchingDocument(context.Background(), &exportState, writeDocument)
+			})
+		}
+		if err := mongo.ExportDocumentsFile(absolutePath, documents, overwrite, request.PrettyPrint); err != nil {
+			return 0, err
+		}
+		return len(documents), nil
+	}
+
+	var startExport func(bool)
+	startExport = func(overwrite bool) {
+		c.exportModal.SetExporting(true)
+		go func() {
+			count, exportErr := writeExport(overwrite)
+			c.App.QueueUpdateDraw(func() {
+				if exportErr == nil {
+					c.exportModal.Hide()
+					modal.ShowInfo(c.App.Pages, fmt.Sprintf("Exported %d documents to %s", count, absolutePath))
+					return
+				}
+
+				c.exportModal.SetExporting(false)
+				if !errors.Is(exportErr, mongo.ErrExportFileExists) {
+					modal.ShowError(c.App.Pages, "Error exporting documents", exportErr)
+					return
+				}
+
+				c.confirmModal.SetConfirmButtonLabel("Overwrite")
+				c.confirmModal.SetText(fmt.Sprintf("File already exists: [blue]%s[-]. Overwrite it?", absolutePath))
+				c.confirmModal.SetDoneFunc(func(_ int, buttonLabel string) {
+					c.App.Pages.RemovePage(c.confirmModal.GetIdentifier())
+					if buttonLabel == "Overwrite" {
+						startExport(true)
+					}
+				})
+				c.App.Pages.AddPage(c.confirmModal.GetIdentifier(), c.confirmModal, true, true)
+			})
+		}()
+	}
+
+	startExport(false)
 }
 
 // Automatic sort (1 or -1) for given column, only in TableView
